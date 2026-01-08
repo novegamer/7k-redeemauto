@@ -12,13 +12,13 @@ OFFICIAL_CODES = [
     "TARGETWISH", "OBLIVION", "SENASTARCRYSTAL", "SENA77MEMORY"
 ]
 
-# เปลี่ยน HEADERS เป็นรูปแบบ Mobile App / Webview
+# Headers ที่เลียนแบบการใช้งานจริงเพื่อให้ของเข้าเกม
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
-    "Accept": "application/json, text/javascript, */*; q=0.01",
-    "X-Requested-With": "XMLHttpRequest",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin"
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+    "Accept": "application/json, text/plain, */*",
+    "Origin": "https://coupon.netmarble.com",
+    "Referer": "https://coupon.netmarble.com/tskgb",
+    "Accept-Language": "th-TH,th;q=0.9"
 }
 
 @app.route('/')
@@ -28,6 +28,15 @@ def index():
 @app.route('/api/get-codes', methods=['GET'])
 def get_codes():
     return jsonify({"codes": OFFICIAL_CODES})
+
+# ขั้นตอนสำคัญ: Inquiry เพื่อให้เซิร์ฟเวอร์ยอมรับการส่งของ
+@app.route('/api/inquiry', methods=['POST'])
+def inquiry():
+    pid = request.json.get('pid')
+    url = "https://coupon.netmarble.com/api/coupon/inquiry"
+    params = {"gameCode": "tskgb", "langCd": "TH_TH", "pid": pid}
+    resp = requests.get(url, params=params, headers=HEADERS)
+    return jsonify(resp.json())
 
 @app.route('/api/redeem', methods=['POST'])
 def redeem():
@@ -40,16 +49,10 @@ def redeem():
             "langCd": "TH_TH",
             "pid": data.get('pid')
         }
-        # ส่งแบบ GET ตามมาตรฐาน Netmarble
         resp = requests.get(url, params=params, headers=HEADERS, timeout=15)
-        
-        try:
-            return jsonify(resp.json())
-        except:
-            return jsonify({"errorCode": 403, "errorMessage": "IP Blocked"}), 200
-            
-    except Exception as e:
-        return jsonify({"errorCode": 500, "errorMessage": "Connection Error"}), 200
+        return jsonify(resp.json())
+    except:
+        return jsonify({"errorCode": 403, "errorMessage": "Connection Error"}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
