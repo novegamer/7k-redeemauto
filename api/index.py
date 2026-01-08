@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, send_from_directory
 import requests
 import os
 
-# ตั้งค่า App ให้รองรับ Render
 app = Flask(__name__, static_folder='../public')
 
 OFFICIAL_CODES = [
@@ -13,11 +12,13 @@ OFFICIAL_CODES = [
     "TARGETWISH", "OBLIVION", "SENASTARCRYSTAL", "SENA77MEMORY"
 ]
 
+# ใช้ Headers แบบ Mobile ตามที่คุณต้องการ เพื่อลดการตรวจจับ
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Origin": "https://coupon.netmarble.com",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "X-Requested-With": "XMLHttpRequest",
     "Referer": "https://coupon.netmarble.com/tskgb",
-    "Accept": "application/json"
+    "Origin": "https://coupon.netmarble.com"
 }
 
 @app.route('/')
@@ -28,23 +29,28 @@ def index():
 def get_codes():
     return jsonify({"codes": OFFICIAL_CODES})
 
-# แก้ไขชื่อ Endpoint ให้ตรงตามที่คุณระบุ: /api/inquiryRequest
-@app.route('/api/inquiryRequest', methods=['POST'])
-def inquiry_request():
+# แก้ไขฟังก์ชัน Inquiry ให้ปลอดภัยจากการ Crash
+@app.route('/api/inquiry', methods=['POST'])
+def inquiry():
     try:
         data = request.get_json()
         pid = data.get('pid')
-        if not pid:
-            return jsonify({"errorCode": 400, "errorMessage": "Missing PID"}), 200
-
         url = "https://coupon.netmarble.com/api/coupon/inquiry"
         params = {"gameCode": "tskgb", "langCd": "TH_TH", "pid": pid}
+        
         resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
         
-        return jsonify(resp.json())
+        # ตรวจสอบสถานะการตอบกลับก่อน parse JSON
+        if resp.status_code != 200:
+            return jsonify({"errorCode": 403, "errorMessage": "เซิร์ฟเวอร์เกมปฏิเสธการเชื่อมต่อ"}), 200
+        
+        try:
+            return jsonify(resp.json())
+        except:
+            return jsonify({"errorCode": 500, "errorMessage": "ข้อมูลที่ได้รับไม่ใช่ JSON"}), 200
+            
     except Exception as e:
-        # แทนที่จะขึ้น 500 ให้ส่ง Error กลับไปที่หน้าเว็บแทน
-        return jsonify({"errorCode": 500, "errorMessage": f"Backend Error: {str(e)}"}), 200
+        return jsonify({"errorCode": 500, "errorMessage": str(e)}), 200
 
 @app.route('/api/redeem', methods=['POST'])
 def redeem():
@@ -58,10 +64,15 @@ def redeem():
             "pid": data.get('pid')
         }
         resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
-        return jsonify(resp.json())
+        
+        try:
+            return jsonify(resp.json())
+        except:
+            return jsonify({"errorCode": 403, "errorMessage": "ไม่สามารถอ่านผลการเติมได้"}), 200
+            
     except Exception as e:
-        return jsonify({"errorCode": 500, "errorMessage": "Redeem Service Error"}), 200
+        return jsonify({"errorCode": 500, "errorMessage": "ระบบขัดข้อง"}), 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
