@@ -7,60 +7,65 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Kanit', sans-serif; background-color: #ffffff; }
-        .main-card { border-radius: 2rem; box-shadow: 0 15px 40px rgba(0,0,0,0.05); border: 1px solid #f8fafc; }
+        .main-card { border-radius: 2.5rem; box-shadow: 0 20px 50px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-6 text-slate-700">
 
     <div class="max-w-md w-full bg-white p-10 main-card text-center">
         <h1 class="text-3xl font-black mb-1 italic tracking-tighter text-slate-800">7K AUTO TOOL</h1>
-        <p class="text-slate-400 text-[10px] mb-8 font-bold uppercase tracking-widest">Deliver Optimized Version</p>
+        <p class="text-slate-400 text-[10px] mb-8 font-bold uppercase tracking-widest">JUNQKO COMMUNITY VERSION</p>
         
         <div class="space-y-4 text-left">
-            <input type="text" id="pid" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all" placeholder="ระบุ PID ของคุณ">
+            <input type="text" id="pid" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all" placeholder="ใส่ PID ของคุณ">
 
             <div id="pArea" class="hidden space-y-2">
-                <div class="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                     <div id="pBar" class="bg-red-600 h-full transition-all duration-700" style="width: 0%"></div>
                 </div>
                 <p id="pStatus" class="text-[9px] text-center text-slate-400 font-bold uppercase"></p>
             </div>
 
-            <button onclick="startJunqkoTool()" id="btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-5 rounded-2xl shadow-xl shadow-red-100 active:scale-95 transition-all text-lg">
+            <button onclick="runAuto()" id="btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-5 rounded-2xl shadow-xl shadow-red-100 active:scale-95 transition-all text-lg">
                 รับของรางวัลทั้งหมด
             </button>
         </div>
 
         <p class="mt-8 text-[11px] font-bold text-slate-300 uppercase tracking-widest">
-            by <span class="text-red-500">Junqko Community</span>
+            by <span class="text-red-500 font-black">Junqko Community</span>
         </p>
     </div>
 
-    <div id="resCard" class="max-w-md w-full mt-4 bg-white p-6 rounded-3xl main-card hidden">
+    <div id="resCard" class="max-w-md w-full mt-4 bg-white p-6 rounded-3xl main-card hidden border border-slate-50">
         <div id="resList" class="space-y-2 max-h-[300px] overflow-y-auto pr-2"></div>
     </div>
 
     <script>
         const wait = ms => new Promise(r => setTimeout(r, ms));
-        const getRnd = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
+        const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-        async function startJunqkoTool() {
+        async function runAuto() {
             const pid = document.getElementById('pid').value.trim();
-            if(!pid) return alert("กรุณาใส่ PID");
+            if(!pid) return alert("กรุณาระบุ PID");
             const btn = document.getElementById('btn');
-            btn.disabled = true; btn.innerText = "กำลังเชื่อมต่อระบบ...";
+            btn.disabled = true; btn.innerText = "กำลังเข้าถึงเซิร์ฟเวอร์...";
 
             try {
-                // ขั้นตอนลับ: Inquiry เพื่อให้ของเข้าเกมจริง
-                const check = await fetch('/api/inquiry', {
+                // เรียกใช้ /api/inquiryRequest ตามที่แก้ไขใน Backend
+                const check = await fetch('/api/inquiryRequest', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ pid })
                 });
-                const user = await check.json();
-                if(user.errorCode !== 200) { alert("ไม่พบตัวละคร: " + user.errorMessage); btn.disabled = false; return; }
+                const userData = await check.json();
 
-                // เริ่มรันโค้ด
+                if (userData.errorCode !== 200) {
+                    alert("แจ้งเตือน: " + (userData.errorMessage || "เซิร์ฟเวอร์ขัดข้อง"));
+                    btn.disabled = false; btn.innerText = "รับของรางวัลทั้งหมด";
+                    return;
+                }
+
+                // เริ่มการเติมโค้ด
                 const { codes } = await (await fetch('/api/get-codes')).json();
                 document.getElementById('pArea').classList.remove('hidden');
                 document.getElementById('resCard').classList.remove('hidden');
@@ -70,12 +75,8 @@
                     document.getElementById('pBar').style.width = Math.round(((i+1)/codes.length)*100) + "%";
                     document.getElementById('pStatus').innerText = `กำลังแลก: ${code}`;
 
-                    // สุ่มหน่วงเวลาเพื่อความเสถียร (2.5 - 4.5 วินาที)
-                    if (i > 0) {
-                        const sleepTime = getRnd(2500, 4500);
-                        document.getElementById('pStatus').innerText = `รอจังหวะส่งของ ${sleepTime/1000} วินาที...`;
-                        await wait(sleepTime);
-                    }
+                    // สุ่มหน่วงเวลาเพื่อความปลอดภัย
+                    if (i > 0) await wait(rnd(2500, 4500));
 
                     const res = await fetch('/api/redeem', {
                         method: 'POST',
@@ -91,8 +92,11 @@
                     row.innerHTML = `<span class="text-xs font-bold text-slate-400">${code}</span><span class="text-[10px] font-black uppercase ${isOk ? 'text-green-600' : 'text-red-600'}">${msg}</span>`;
                     document.getElementById('resList').prepend(row);
                 }
-                btn.innerText = "สำเร็จ! ตรวจสอบในเกมได้เลย";
-            } catch (e) { alert("ระบบเชื่อมต่อขัดข้อง"); btn.disabled = false; }
+                btn.innerText = "เสร็จสมบูรณ์";
+            } catch (e) {
+                alert("เชื่อมต่อล้มเหลว: กรุณาเช็คอินเทอร์เน็ตหรือรอสักครู่");
+                btn.disabled = false;
+            }
         }
     </script>
 </body>
