@@ -2,83 +2,109 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>7K Auto - Junqko Community</title>
+    <title>7K AUTO - by Junqko Community</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #ffffff; }
-        .junqko-card { border-radius: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08); border: 1px solid #f1f5f9; }
+        body { font-family: 'Kanit', sans-serif; background-color: #fcfcfc; color: #334155; }
+        .card-main { border-radius: 2rem; box-shadow: 0 15px 35px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; background: white; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-6 text-slate-700">
-    <div class="max-w-md w-full bg-white p-10 junqko-card text-center">
-        <h1 class="text-3xl font-black mb-1 italic tracking-tighter">7K AUTO TOOL</h1>
-        <p class="text-slate-400 text-[10px] mb-8 font-bold uppercase tracking-widest">JUNQKO COMMUNITY VERSION</p>
+<body class="min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="max-w-md w-full p-10 card-main text-center">
+        <h1 class="text-3xl font-black mb-1 italic tracking-tighter text-slate-800">7K AUTO TOOL</h1>
+        <p class="text-slate-400 text-[10px] mb-8 font-bold uppercase tracking-widest italic">Simplify Version</p>
         
         <div class="space-y-4 text-left">
-            <input type="text" id="pid" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all" placeholder="กรอก Player ID (PID)">
-            
+            <div>
+                <label class="text-[11px] font-bold text-slate-400 uppercase ml-1 block mb-2">ระบุ PID ของคุณ</label>
+                <input type="text" id="pid" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-red-500 font-bold transition-all" placeholder="กรอก Player ID">
+            </div>
+
             <div id="pArea" class="hidden space-y-2">
-                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div class="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
                     <div id="pBar" class="bg-red-600 h-full transition-all duration-700" style="width: 0%"></div>
                 </div>
                 <p id="pStatus" class="text-[9px] text-center text-slate-400 font-bold uppercase"></p>
             </div>
 
-            <button onclick="startJunqko()" id="btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-5 rounded-2xl shadow-xl shadow-red-100 active:scale-95 transition-all text-lg">
+            <button onclick="runDirectAuto()" id="btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-5 rounded-2xl shadow-xl shadow-red-100 active:scale-95 transition-all text-lg">
                 รับของรางวัลทั้งหมด
             </button>
         </div>
-        <p class="mt-8 text-[10px] font-bold text-slate-300 uppercase tracking-widest">by <span class="text-red-500">Junqko Community</span></p>
+
+        <p class="mt-10 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+            by <span class="text-red-500">Junqko Community</span>
+        </p>
     </div>
-    <div id="resCard" class="max-w-md w-full mt-4 bg-white p-6 rounded-3xl junqko-card hidden border border-slate-50">
+
+    <div id="resCard" class="max-w-md w-full mt-4 bg-white p-6 rounded-3xl card-main hidden border border-slate-50">
         <div id="resList" class="space-y-2 max-h-[250px] overflow-y-auto pr-2"></div>
     </div>
 
     <script>
         const wait = ms => new Promise(r => setTimeout(r, ms));
-        async function startJunqko() {
-            const pid = document.getElementById('pid').value.trim();
-            if(!pid) return alert("กรุณาระบุ PID");
-            const btn = document.getElementById('btn');
-            btn.disabled = true; btn.innerText = "กำลังตรวจสอบบัญชี...";
-            try {
-                // Step 1: Check User
-                const check = await fetch('/api/check-user', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ pid })
-                });
-                const userData = await check.json();
-                if (userData.errorCode !== 200) { alert(userData.errorMessage); btn.disabled = false; return; }
+        const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-                // Step 2: Redeem Loop
-                const { codes } = await (await fetch('/api/get-codes')).json();
+        async function runDirectAuto() {
+            const pid = document.getElementById('pid').value.trim();
+            if(!pid) return alert("กรุณาใส่ PID");
+            
+            const btn = document.getElementById('btn');
+            btn.disabled = true;
+            btn.innerText = "กำลังเริ่มต้นระบบ...";
+
+            try {
+                // ดึงโค้ดและเริ่มเติมทันที (ไม่มี Check User)
+                const codeRes = await fetch('/api/get-codes');
+                const { codes } = await codeRes.json();
+                
                 document.getElementById('pArea').classList.remove('hidden');
                 document.getElementById('resCard').classList.remove('hidden');
+                document.getElementById('resList').innerHTML = "";
+
                 for (let i = 0; i < codes.length; i++) {
                     const code = codes[i];
                     document.getElementById('pBar').style.width = Math.round(((i+1)/codes.length)*100) + "%";
-                    document.getElementById('pStatus').innerText = `กำลังแลก: ${code}`;
-                    // สุ่มหน่วงเวลา 2.5 - 4.5 วินาที
-                    if(i > 0) await wait(Math.floor(Math.random() * 2000) + 2500); 
+                    document.getElementById('pStatus').innerText = `กำลังแลกโค้ด: ${code}`;
+
+                    // สุ่มหน่วงเวลา 2.5 - 4 วินาที เพื่อลดโอกาสโดนแบน
+                    if (i > 0) {
+                        const sleep = rnd(2500, 4000);
+                        document.getElementById('pStatus').innerText = `พักระบบ ${sleep/1000} วินาที...`;
+                        await wait(sleep);
+                    }
+
                     const res = await fetch('/api/redeem', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ pid, code })
                     });
                     const data = await res.json();
-                    if(data.errorCode === 403) { alert("IP ถูกระงับชั่วคราว กรุณาพัก 10 นาที"); break; }
+                    
+                    // ตรวจสอบสถานะการโดนบล็อก
+                    if (data.errorCode === 403) {
+                        alert("IP ถูกระงับชั่วคราว กรุณาหยุดใช้ 10 นาทีครับ");
+                        break;
+                    }
+
                     const isOk = data.success === true || data.errorMessage === "SUCCESS" || data.errorMessage === "아이템이 지급되었습니다.";
+                    const isUsed = data.errorCode === 24004;
+
                     const row = document.createElement('div');
-                    row.className = `flex justify-between p-4 bg-slate-50 rounded-2xl border-l-4 ${isOk ? 'border-green-500' : 'border-red-500'}`;
-                    let msg = isOk ? (data.resultData?.[0]?.productName || 'สำเร็จ') : (data.errorCode === 24004 ? 'ใช้แล้ว' : 'ขัดข้อง');
+                    row.className = `flex justify-between p-4 bg-slate-50 rounded-2xl border-l-4 ${isOk ? 'border-l-green-500' : 'border-l-red-500'}`;
+                    let msg = isOk ? (data.resultData?.[0]?.productName || 'สำเร็จ') : (isUsed ? 'ใช้งานแล้ว' : 'ขัดข้อง');
+                    
                     row.innerHTML = `<span class="text-xs font-bold text-slate-400">${code}</span><span class="text-[10px] font-black uppercase ${isOk ? 'text-green-600' : 'text-red-600'}">${msg}</span>`;
                     document.getElementById('resList').prepend(row);
                 }
                 btn.innerText = "ดำเนินการเสร็จสิ้น";
-            } catch (e) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); btn.disabled = false; }
+            } catch (e) {
+                alert("การเชื่อมต่อล้มเหลว");
+                btn.disabled = false;
+                btn.innerText = "ลองใหม่อีกครั้ง";
+            }
         }
     </script>
 </body>
