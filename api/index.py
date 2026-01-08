@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import requests
 import os
 
+# ตั้งค่า App ให้รองรับ Render
 app = Flask(__name__, static_folder='../public')
 
 OFFICIAL_CODES = [
@@ -12,13 +13,11 @@ OFFICIAL_CODES = [
     "TARGETWISH", "OBLIVION", "SENASTARCRYSTAL", "SENA77MEMORY"
 ]
 
-# Headers ที่เลียนแบบการใช้งานจริงเพื่อให้ของเข้าเกม
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
-    "Accept": "application/json, text/plain, */*",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Origin": "https://coupon.netmarble.com",
     "Referer": "https://coupon.netmarble.com/tskgb",
-    "Accept-Language": "th-TH,th;q=0.9"
+    "Accept": "application/json"
 }
 
 @app.route('/')
@@ -29,19 +28,28 @@ def index():
 def get_codes():
     return jsonify({"codes": OFFICIAL_CODES})
 
-# ขั้นตอนสำคัญ: Inquiry เพื่อให้เซิร์ฟเวอร์ยอมรับการส่งของ
-@app.route('/api/inquiry', methods=['POST'])
-def inquiry():
-    pid = request.json.get('pid')
-    url = "https://coupon.netmarble.com/api/coupon/inquiry"
-    params = {"gameCode": "tskgb", "langCd": "TH_TH", "pid": pid}
-    resp = requests.get(url, params=params, headers=HEADERS)
-    return jsonify(resp.json())
+# แก้ไขชื่อ Endpoint ให้ตรงตามที่คุณระบุ: /api/inquiryRequest
+@app.route('/api/inquiryRequest', methods=['POST'])
+def inquiry_request():
+    try:
+        data = request.get_json()
+        pid = data.get('pid')
+        if not pid:
+            return jsonify({"errorCode": 400, "errorMessage": "Missing PID"}), 200
+
+        url = "https://coupon.netmarble.com/api/coupon/inquiry"
+        params = {"gameCode": "tskgb", "langCd": "TH_TH", "pid": pid}
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
+        
+        return jsonify(resp.json())
+    except Exception as e:
+        # แทนที่จะขึ้น 500 ให้ส่ง Error กลับไปที่หน้าเว็บแทน
+        return jsonify({"errorCode": 500, "errorMessage": f"Backend Error: {str(e)}"}), 200
 
 @app.route('/api/redeem', methods=['POST'])
 def redeem():
     try:
-        data = request.json
+        data = request.get_json()
         url = "https://coupon.netmarble.com/api/coupon/reward"
         params = {
             "gameCode": "tskgb",
@@ -49,10 +57,10 @@ def redeem():
             "langCd": "TH_TH",
             "pid": data.get('pid')
         }
-        resp = requests.get(url, params=params, headers=HEADERS, timeout=15)
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
         return jsonify(resp.json())
-    except:
-        return jsonify({"errorCode": 403, "errorMessage": "Connection Error"}), 200
+    except Exception as e:
+        return jsonify({"errorCode": 500, "errorMessage": "Redeem Service Error"}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
